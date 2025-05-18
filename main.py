@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Request
-import json
 
 app = FastAPI()
 
