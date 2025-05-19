@@ -7,25 +7,27 @@ from binance.client import Client
 from dotenv import load_dotenv
 import os
 
-# Wczytaj zmienne środowiskowe
+# Wczytaj dane z .env / Render Environment
 load_dotenv()
 API_KEY = os.getenv("BINANCE_API_KEY")
 API_SECRET = os.getenv("BINANCE_API_SECRET")
 
-# Inicjalizacja klienta Binance Testnet
-client = Client(API_KEY, API_SECRET)
+# Inicjalizacja klienta Binance – Testnet (bez wywoływania .ping())
+client = Client()
+client.API_KEY = API_KEY
+client.API_SECRET = API_SECRET
 client.API_URL = 'https://testnet.binance.vision/api'
 
 # Konfiguracja logowania
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# 🔐 Token zabezpieczający webhook
+# Token zabezpieczający
 SECRET_TOKEN = "moj_super_tajny_token"
 
-# Inicjalizacja aplikacji FastAPI
+# Inicjalizacja FastAPI
 app = FastAPI()
 
-# 🔁 Funkcja do składania zleceń
+# 🔁 Funkcja realizacji zlecenia
 def wykonaj_transakcje(symbol, kierunek):
     try:
         logging.info(f"🔁 Próba realizacji zlecenia: {kierunek} {symbol}")
@@ -42,25 +44,24 @@ def wykonaj_transakcje(symbol, kierunek):
     except Exception as e:
         logging.error(f"❌ Błąd przy składaniu zlecenia: {e}")
 
-# 📩 Obsługa webhooka z TradingView
+# 📩 Obsługa webhooka
 @app.post("/webhook")
 async def webhook(request: Request):
     try:
         data = await request.json()
 
-        # Weryfikacja tokena
         if data.get("token") != SECRET_TOKEN:
             logging.warning(f"❌ Unauthorized attempt: {data}")
             return {"status": "unauthorized"}
 
         logging.info(f"📩 Alert received: {data}")
 
-        # Zapis do pliku logu
+        # Zapis do pliku
         timestamp = datetime.utcnow().isoformat()
         with open("alerts.log", "a") as f:
             f.write(f"{timestamp} - {json.dumps(data)}\n")
 
-        # Wykonaj transakcję
+        # Realizacja zlecenia
         message = data.get("message", "").upper()
         if message == "BUY":
             wykonaj_transakcje("BTCUSDT", "BUY")
@@ -75,6 +76,6 @@ async def webhook(request: Request):
         logging.error(f"❌ Error parsing webhook: {e}")
         return {"status": "error", "details": str(e)}
 
-# Uruchomienie lokalne (Render tego nie używa)
+# Uruchomienie lokalne (dla testów na komputerze)
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=10000)
