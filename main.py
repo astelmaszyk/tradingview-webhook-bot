@@ -12,15 +12,17 @@ load_dotenv()
 API_KEY = os.getenv("BINANCE_API_KEY")
 API_SECRET = os.getenv("BINANCE_API_SECRET")
 
-# Inicjalizacja klienta Binance
+# Inicjalizacja klienta Binance Testnet
 client = Client(API_KEY, API_SECRET)
+client.API_URL = 'https://testnet.binance.vision/api'
 
 # Konfiguracja logowania
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# 🔐 TOKEN zabezpieczający
+# 🔐 Token zabezpieczający webhook
 SECRET_TOKEN = "moj_super_tajny_token"
 
+# Inicjalizacja aplikacji FastAPI
 app = FastAPI()
 
 # 🔁 Funkcja do składania zleceń
@@ -33,14 +35,14 @@ def wykonaj_transakcje(symbol, kierunek):
         elif kierunek == "SELL":
             order = client.order_market_sell(symbol=symbol, quantity=0.001)
         else:
-            logging.warning(f"Nieznany kierunek: {kierunek}")
+            logging.warning(f"⚠️ Nieznany kierunek: {kierunek}")
             return
 
         logging.info(f"✅ Zlecenie zrealizowane: {order}")
     except Exception as e:
         logging.error(f"❌ Błąd przy składaniu zlecenia: {e}")
 
-# 📩 Obsługa webhooka
+# 📩 Obsługa webhooka z TradingView
 @app.post("/webhook")
 async def webhook(request: Request):
     try:
@@ -48,24 +50,24 @@ async def webhook(request: Request):
 
         # Weryfikacja tokena
         if data.get("token") != SECRET_TOKEN:
-            logging.warning(f"Unauthorized attempt: {data}")
+            logging.warning(f"❌ Unauthorized attempt: {data}")
             return {"status": "unauthorized"}
 
         logging.info(f"📩 Alert received: {data}")
 
-        # Zapis do logu
+        # Zapis do pliku logu
         timestamp = datetime.utcnow().isoformat()
         with open("alerts.log", "a") as f:
             f.write(f"{timestamp} - {json.dumps(data)}\n")
 
-        # Wykonanie transakcji na podstawie alertu
+        # Wykonaj transakcję
         message = data.get("message", "").upper()
         if message == "BUY":
             wykonaj_transakcje("BTCUSDT", "BUY")
         elif message == "SELL":
             wykonaj_transakcje("BTCUSDT", "SELL")
         else:
-            logging.info("⚠️ Nieznany typ wiadomości — pomijam")
+            logging.info("⚠️ Pominięto nieznany typ wiadomości")
 
         return {"status": "ok"}
 
@@ -76,4 +78,3 @@ async def webhook(request: Request):
 # Uruchomienie lokalne (Render tego nie używa)
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=10000)
-
